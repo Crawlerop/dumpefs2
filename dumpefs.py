@@ -1,5 +1,5 @@
 from efs2 import *
-from stat import filemode
+from stat import filemode, S_ISDIR
 
 def _do_efs_shell(s: EFS2, name: str):
     import shlex
@@ -183,10 +183,10 @@ if __name__ == "__main__":
 
     else:
         with zipfile.ZipFile(args.out_filename, "w", zipfile.ZIP_DEFLATED, compresslevel=9) as zf:            
-            for f in s.ls_recursive("/"):
+            for f, inode in s.ls_recursive("/"):
                 print(f)
                 try:
-                    if f.endswith("/"):
+                    if S_ISDIR(inode.mode):
                         zf.open(f.lstrip("/"), "w").write(b"")
 
                     else:
