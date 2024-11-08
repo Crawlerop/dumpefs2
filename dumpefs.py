@@ -186,7 +186,8 @@ if __name__ == "__main__":
             for f, inode in s.ls_recursive("/"):
                 print(f)
                 try:
-                    info = zipfile.ZipInfo(filename=f.lstrip("/"), date_time=inode.modified_time.timetuple()[:6])
+                    date = inode.modified_time.timetuple()[:6]
+                    info = zipfile.ZipInfo(filename=f.lstrip("/"), date_time=date if date[0] >= 1980 else (1980, 1, 1, 0, 0, 0))
                     info.compress_type = zipfile.ZIP_DEFLATED
                     if S_ISDIR(inode.mode):
                         zf.open(info, "w").write(b"")
