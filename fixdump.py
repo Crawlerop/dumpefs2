@@ -24,7 +24,7 @@ if __name__ == "__main__":
     ecc_spare_type_map = {"riff": SpareType.RIFF, "standard": SpareType.STANDARD, "qcom": SpareType.QCOM_2K}
     ecc_algo_map = {"rs": EccRs, "hamming20": EccHamming20}
 
-    nand = ECCFile(open(args.in_filename, "rb"), args.spare_offset, ecc_spare_type_map[args.spare_type], args.bbm, args.width, ecc_algo_map[args.ecc_algo])
+    nand = ECCFile(args.in_filename, args.spare_offset, ecc_spare_type_map[args.spare_type], args.bbm, args.width, ecc_algo_map[args.ecc_algo])
     nand_decoded = open(args.out_filename, "wb")
 
     while True:

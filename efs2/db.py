@@ -65,7 +65,7 @@ class InlineData():
         self.group_id: int = None
         self.created_time: datetime = None
         self.data: bytes = None
-        
+
     def __repr__(self):
         return "<{klass} {attrs}>".format(
             klass=self.__class__.__name__,
@@ -76,14 +76,14 @@ class DatabaseItem():
     def __init__(self):
         self.name: bytes = None
         self.parent_inode: int = None
-        
+
         self.inode_type: int = None
         self.inode: int = None
         self.inline: InlineData = None
         self.symlink_path: bytes = None
-        
+
         self.long_name: bytes = None
-        
+
     def __repr__(self):
         return "<{klass} {attrs}>".format(
             klass=self.__class__.__name__,
@@ -108,7 +108,7 @@ class Database():
 
             for c in clusters:
                 db_map = self.__recurse_db(c, db_map)
-                
+
         else:
             for n in node.db.nodes:
                 temp = DatabaseItem()
@@ -136,24 +136,24 @@ class Database():
 
                 temp.symlink_path = n.symlink
                 temp.long_name = n.long_name
-                
+
                 if n.parent_inode not in db_map:
                     db_map[n.parent_inode] = []
 
                 db_map[n.parent_inode].append(temp)
-        
+
         return db_map
-    
+
     def lookup(self, dir: int, name: str) -> DatabaseItem | None:
         for n in self.__nodes[dir]:
             if (name == "." and n.name == b"") or (name == ".." and n.name == b"\0") or (name == n.name.decode(self.__encoding)):
                 return n
 
         return None
-    
+
     def list(self, dir: int) -> list[DatabaseItem]:
         return self.__nodes[dir]
-    
+
     def __repr__(self) -> str:
         return "<{klass} {attrs}>".format(
             klass=self.__class__.__name__,

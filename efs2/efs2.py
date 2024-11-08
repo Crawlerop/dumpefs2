@@ -59,7 +59,7 @@ class EFS2():
 
         if self.__super.is_nand:
             sb_count = self.__super.regions[Regions.SUPER_LOG_END] - self.__super.regions[Regions.SUPER_LOG_START]
-            
+
             self.efs_end: int = superblock_offsets[0] + (sb_count * self.__super.block_length)
             self.efs_start: int = (self.efs_end - (self.__super.page_total * self.__super.page_size))
 
@@ -135,7 +135,8 @@ class EFS2():
             expectFile = i >= len(paths) - 1
             match = self._db.lookup(inode_now, p)
 
-            if match is None: raise FileNotFoundError(pathname)
+            if match is None:
+                raise FileNotFoundError(pathname)
 
             inode = self.__classify_inode(match)
 
@@ -222,7 +223,7 @@ class EFS2():
 
         file, _ = self.__resolve(pathname)
         return file
-        
+
     def open(self, pathname: str, follow_symlinks: bool=True) -> INode:
         if self._closed:
             raise Exception("Cannot perform when closed")

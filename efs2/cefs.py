@@ -39,7 +39,7 @@ CEFS_FACTORY_V1 = Struct(
 class CEFSFactory(Superblock):
     def __init__(self, data: bytes):
         factory = (CEFS_FACTORY_V2 if data[:8] == b'\x87\x67\x85\x34\x59\x77\x34\x92' else CEFS_FACTORY_V1).parse(data)
-        
+
         # 01 - Header
         self.factory_version: int = factory.fact_version
         self.version: int = factory.version
@@ -53,13 +53,13 @@ class CEFSFactory(Superblock):
         # 03 - Computed info
         self.block_length: int = factory.block_length
         self.page_total: int = factory.page_total
-        
+
         self.block_shift: int = ilog2(factory.block_size)
         self.block_mask: int = ~((1 << self.block_shift) - 1)
-        
+
         # 04 - Page management
         self.cefs_page_count: int = factory.cefs_page_count
-        
+
         # 05 - Upper Data
         self.upper_data: list[int] = factory.upper_data
 

@@ -3,20 +3,20 @@ from .super import Superblock
 from io import RawIOBase
 from .log import PageLog
 
-class PageManager(metaclass=ABCMeta):    
+class PageManager(metaclass=ABCMeta):
     def __init__(self, sb: Superblock, file: RawIOBase, base_offset: int) -> None:
         self.super: Superblock = sb
         self.file: RawIOBase = file
         self._base_offset: int = base_offset
         self._log: PageLog = None
-            
+
     def compute_ptables(self) -> None:
         pass
 
     @abstractmethod
     def get_forward(self, cluster: int) -> int:
         pass
-    
+
     @abstractmethod
     def get_reverse(self, page: int) -> int:
         pass
@@ -29,7 +29,7 @@ class PageManager(metaclass=ABCMeta):
 
     def set_log(self, log: PageLog):
         self._log = log
-        
+
     def __repr__(self):
         return "<{klass} {attrs}>".format(
             klass=self.__class__.__name__,

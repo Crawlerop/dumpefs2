@@ -38,7 +38,7 @@ class EccMeta(metaclass=ABCMeta):
     @abstractmethod
     def encode(self, data: bytes) -> bytes:
         pass
-    
+
     @abstractmethod
     def decode(self, data: bytes, ecc: bytes) -> bytes:
         pass
@@ -53,15 +53,15 @@ class EccHamming20(EccMeta):
     @staticmethod
     def __do_gen_ecc(data: bytes) -> bytes:
         reg1 = reg2 = reg3 = 0
-        
+
         for i in range(128):
             idx = ECC_XOR_TABLE[data[i]]
             reg1 ^= idx & 0x3f
-            
+
             if idx & 0x40:
                 reg3 ^= i
                 reg2 ^= (~i) + 0x100            
-        
+
         tmp1 = (reg3 & 0x40) >> 1
         tmp1 |= (reg2 & 0x40) >> 2
         tmp1 |= (reg3 & 0x20) >> 2
@@ -77,49 +77,52 @@ class EccHamming20(EccMeta):
         tmp2 |= (reg2 & 0x02) << 1
         tmp2 |= (reg3 & 0x01) << 1
         tmp2 |= (reg2 & 0x01) << 0
-        
+
         return bytes([tmp1, tmp2, reg1])
-    
+
     @staticmethod
     def __do_check_ecc(data: bytes, ecc: bytes, ecc_calc: bytes) -> tuple[bytes, int, int]:
         data = bytearray(data)
         ecc_xor = bytes([x ^ y for x, y in zip(ecc, ecc_calc)])
-        
-        if ecc_xor == b"\0\0\0": return bytes(data), -1, -1
-        
+
+        if ecc_xor == b"\0\0\0": 
+            return bytes(data), -1, -1
+
         check_ecc = bytes([x ^ (x >> 1) for x in ecc_xor])
-        
+
         def get_bit(d: int, s: int):
             return (d >> s) & 1
-        
+
         if (check_ecc[0] & 0x15) == 0x15 and (check_ecc[1] & 0x55) == 0x55 and (check_ecc[2] & 0x14) == 0x14:
             err_bitpos = get_bit(ecc_xor[2], 4) << 2 | get_bit(ecc_xor[2], 2) << 1 | get_bit(ecc_xor[2], 0)
             err_bytepos = get_bit(ecc_xor[0], 5) << 6 | get_bit(ecc_xor[0], 3) << 5 | get_bit(ecc_xor[0], 1) << 4 | get_bit(ecc_xor[1], 7) << 3 | get_bit(ecc_xor[1], 5) << 2 | get_bit(ecc_xor[1], 3) << 1 | get_bit(ecc_xor[1], 1)
-            
+
             err_bitpos_mask = 1 << (7 - err_bitpos)
             if data[err_bytepos] & err_bitpos_mask:
                 data[err_bytepos] &= ~err_bitpos_mask
-                
+
             else:
                 data[err_bytepos] |= err_bitpos_mask
-            
+
             return bytes(data), err_bytepos, err_bitpos
-            
+
         def bitcount(data: int):
             temp = 0
             while data:
                 temp += data & 1
                 data >>= 1
-                
+
             return temp
-            
-        if bitcount(ecc_xor[0] | ecc_xor[1] << 8 | ecc_xor[2] << 16) != 1: raise ECCError("Uncorrectable multi-bit error")
+
+        if bitcount(ecc_xor[0] | ecc_xor[1] << 8 | ecc_xor[2] << 16) != 1:
+            raise ECCError("Uncorrectable multi-bit error")
+
         return bytes(data), -1, -1
 
     def encode(self, data: bytes) -> bytes:
         if len(data) > 512:
             raise ValueError('ECC data larger than 512 bytes')
-        
+
         if (len(data) % 0x80) != 0:
             raise ValueError('ECC data length must be divisible by 128 bytes')
 
@@ -129,20 +132,20 @@ class EccHamming20(EccMeta):
             temp += self.__do_gen_ecc(data[(i*0x80):(i*0x80)+0x80])
 
         return bytes(temp)
-    
+
     def decode(self, data: bytes, ecc: bytes) -> bytes:
         if len(data) > 512:
             raise ValueError('ECC data larger than 512 bytes')
-        
+
         if (len(data) % 0x80) != 0:
             raise ValueError('ECC data length must be divisible by 128 bytes')
-        
+
         if len(ecc) > 12:
             raise ValueError('ECC parity larger than 512 bytes')
-        
+
         if (len(ecc) % 0x3) != 0:
             raise ValueError('ECC parity length must be divisible by 3 bytes')
-        
+
         if (len(ecc) // 3) != (len(data) // 0x80): 
             raise ValueError('ECC parity count must be the same as data count')
 
@@ -187,29 +190,29 @@ class EccRs(EccMeta):
             eccbytes.append(byte)
 
         return bytes(eccbytes)
-    
+
     @staticmethod
     def __bytes_to_10bit_ecc(ecc: bytes) -> list[int]:
         if len(ecc) != 10:
             raise ValueError('ECC part must be exactly 10 bytes')
-        
+
         bitRead_Data = 0x100 | ecc[0]
         bitRead_Offset = 0
-        
+
         def readBit(count):
             nonlocal bitRead_Data, bitRead_Offset
             temp = 0
-            
+
             for i in range(count):
                 if bitRead_Data == 0x1:
                     bitRead_Offset += 1
                     bitRead_Data = 0x100 | ecc[bitRead_Offset]
-                    
+
                 temp |= (bitRead_Data & 0x1) << i
                 bitRead_Data >>= 1
-                    
+
             return temp
-                    
+
         return [readBit(10) for _ in range(8)]
 
     def encode(self, data: bytes) -> bytes:
@@ -220,38 +223,33 @@ class EccRs(EccMeta):
         array_data = [int(x) for x in padded_data]
         eccpre = rs.rs_encode_msg(array_data, 8, gen=self.__gen)
 
-        #raise Exception(eccpre)
-
         return self.__10bit_ecc_to_bytes(eccpre[1015:])
-    
+
     def decode(self, data: bytes, ecc: bytes) -> bytes:
         if len(data) > 1015:
             raise ValueError('Data larger than 1015 bytes')
-        
+
         if len(ecc) != 10:
             raise ValueError('ECC must be exactly 10 bytes')
 
         padded_data = b'\x00' * (1015 - len(data)) + data
         array_data = [int(x) for x in padded_data] + self.__bytes_to_10bit_ecc(ecc)
-        # eccpre = rs.rs_encode_msg(array_data, 8, gen=self.__gen)[1015:]
-        
+
         try:
             return bytes([x for x in rs.rs_correct_msg(array_data, 8, fcr=1)[0]])[-len(data):]
-        
+
         except rs.ReedSolomonError as e:
             raise ECCError(*e.args)
-
-        #ecc = self.__bytes_to_10bit_ecc(data)
 
     @property
     def size(self) -> int:
         return 10
-    
+
 class SpareType(IntEnum):
     RIFF = 0
     STANDARD = 1
     QCOM_2K = 2
-    
+
 class ECCFile(RawIOBase):    
     def __init__(self, inp: str | RawIOBase, spare_offset_page_size: int=0, spare_type: int=SpareType.RIFF, bbm: int=5, page_width: int=16, ecc_algo: EccMeta=EccRs) -> None:
         self.__closed: bool = True
@@ -295,7 +293,8 @@ class ECCFile(RawIOBase):
         self.__closed: bool = False
 
     def __read_page(self) -> tuple[bytes, bytes]:
-        if self.__cur_offset >= self.__eof: return b"", b""
+        if self.__cur_offset >= self.__eof:
+            return b"", b""
 
         if self.__spare_type == SpareType.RIFF:
             return self.__fio.read(0x200), self.__spare_io.read(0x10)
@@ -311,17 +310,17 @@ class ECCFile(RawIOBase):
             self.__fio.seek(spare_offset)
 
             return a, self.__fio.read(0x10)
-        
-        elif self.__spare_type == SpareType.QCOM_2K:            
+
+        elif self.__spare_type == SpareType.QCOM_2K:
             a = self.__fio.read(0x1d0 if self.__page_width == 16 else 0x1d1)
             self.__fio.read(2 if self.__page_width == 16 else 1)
             b = self.__fio.read(0x30 if self.__page_width == 16 else 0x2f)
 
             return a + b, self.__fio.read(0xe if self.__page_width == 16 else 0xf)
-        
+
     def __update_ecc_block(self) -> None:
         ecc_d, ecc_s = self.__read_page()
-        if ecc_d == b"": 
+        if ecc_d == b"":
             self.__ecc_block = ecc_d
             return
 
@@ -378,7 +377,9 @@ class ECCFile(RawIOBase):
 
             temp += self.__ecc_block[start_offset:start_offset+read_size]
 
-            if count != -1: count -= read_size
+            if count != -1:
+                count -= read_size
+
             self.__cur_offset += read_size
 
             if (start_offset + read_size) == 0x200:

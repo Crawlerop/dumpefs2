@@ -25,7 +25,7 @@ _EFS2_SUPERBLOCK = Struct(
         "num_regions" / Hex(Int16ul),
         "regions" / Array(this.num_regions, Hex(Int32ul)),
         "logr_badmap" / Hex(Int32ul),
-        "pad" / Hex(Int32ul),        
+        "pad" / Hex(Int32ul),
         "ptables" / IfThenElse(this._.page_size == 0x800, Array(0xe2, Hex(Int32ul)), IfThenElse(actual_version(this._.version) >= 0x24, Array(0x22, Hex(Int32ul)), Array(0x30, Hex(Int32ul)))), # Cluster to Page
         "rtables" / IfThenElse(this._.page_size == 0x800, Array(0xe2, Hex(Int32ul)), IfThenElse(actual_version(this._.version) >= 0x24, Array(0x22, Hex(Int32ul)), Array(0x30, Hex(Int32ul)))), # Page to Cluster
     ), Struct(
@@ -138,15 +138,15 @@ def Compute_CRC30(buf):
     crc30 = 0x3FFFFFFF
     len = buf.__len__()
     buf_ptr = 0
-    
+
     while len >= 8:
         crc30 = crc30_table[ ((crc30 >> (30 - 8)) ^ buf[buf_ptr]) & 0xff ] ^ (crc30 << 8)
         len -= 8
         buf_ptr += 1
-        
+
     if len > 0:
         data = by2int(buf[buf_ptr:buf_ptr+4]) << (30 - 8)
-        
+
         while len > 0:
             if ( ((crc30 ^ data) & (1 << 29)) != 0 ):
                 crc30 <<= 1
@@ -157,10 +157,9 @@ def Compute_CRC30(buf):
 
             data <<= 1
             len -= 1
-        
+
     crc30 = ~crc30
     return (crc30 + 0xffffffff + 1) & 0x3FFFFFFF
-        
 
 class UpperDataIndex(IntEnum):
     FREEMAP_BASE = 0
@@ -181,51 +180,51 @@ class Regions(IntEnum):
 class Superblock():
     def __init__(self, data: bytes | bytearray):
         sb = _EFS2_SUPERBLOCK.parse(data)
-        
+
         # 01 - Header
         self.version: int = sb.version
         self.age: int = sb.age
         self.checksum: int = by2int(data[sb.page_size-4:sb.page_size])
         self.computed_checksum: int = Compute_CRC30(data[:(sb.page_size * 8) - 32])
-        
+
         # 02 - Filesystem Information
         self.block_size: int = sb.block_size
         self.page_size: int = sb.page_size
         self.block_count: int = sb.block_count
-        
+
         # 03 - Computed info
         self.block_length: int = sb.block_length
         self.page_total: int = sb.page_total
         self.is_nand: int = sb.is_nand
-        
+
         self.block_shift: int = ilog2(sb.block_size)
         self.block_mask: int = ~((1 << self.block_shift) - 1)
-        
+
         # 04 - Page management
         self.log_head: int = sb.log_head
         self.alloc_next: list[int] = sb.alloc_next
         self.gc_next: list[int] = sb.gc_next
-        
+
         # 05 - Upper Data (see top)
         self.upper_data: list[int] = sb.upper_data
-        
+
         # 06 - Flash-speciic information
         if sb.is_nand:
             self.nodes_per_page: int = sb.nand_info.nodes_per_page
             self.page_depth: int = sb.nand_info.page_depth
-            
+
             nodes_per_page_bits = ilog2(sb.nand_info.nodes_per_page)
-            
+
             self.depth_shift: list[int] = [x * nodes_per_page_bits for x in range(sb.nand_info.page_depth)]
             self.depth_masks: list[int] = [((1 << nodes_per_page_bits) - 1) << self.depth_shift[x] for x in range(sb.nand_info.page_depth)]
-            
+
             self.regions: list[int] = sb.nand_info.regions
             self.ptables: list[int] = sb.nand_info.ptables
             self.rtables: list[int] = sb.nand_info.rtables
-            
+
         else:
             self.nor_writing_style: int = sb.nand_info.nor_writing_style
-            
+
     def __repr__(self) -> str:
         return "<{klass} {attrs}>".format(
             klass=self.__class__.__name__,

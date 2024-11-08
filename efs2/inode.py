@@ -25,12 +25,12 @@ EFS2_INODE_V2 = Struct(
 
 EFS2_INODE_V1 = Struct(
     "mode" / Hex(Int16ul),
-    "nlink" / Hex(Int16ul),    
-    "size" / Hex(Int32ul),    
+    "nlink" / Hex(Int16ul),
+    "size" / Hex(Int32ul),
     "generation" / Hex(Int32ul),
     "blocks" / Hex(Int32ul),
     "mtime" / Hex(Int32ul),
-    "ctime" / Hex(Int32ul),        
+    "ctime" / Hex(Int32ul),
     "direct_cluster_id" / Array(6, Hex(Int32ul)),
     "indirect_cluster_id" / Array(3, Hex(Int32ul)),
 )
@@ -56,13 +56,13 @@ class INode():
 
         if item.name == b"":
             self.name: str = "."
-            
+
         elif item.name == b"\0":
             self.name: str = ".."
-            
+
         else:
             self.name: str = item.name.decode(encoding)
-            
+
         self.mode: int = inode.mode
         self.file_size: int = inode.size
         self.generation: int = inode.generation
@@ -84,10 +84,10 @@ class INode():
             self.user_id: int = 0
             self.group_id: int = 0
             self.accessed_time: datetime = datetime.fromtimestamp(0)
-            
+
         self.pm = pm
         self.table_count = pm.super.page_size // 4
-            
+
     def __repr__(self) -> str:
         return "<{klass} {attrs}>".format(
             klass=self.__class__.__name__,
@@ -105,23 +105,23 @@ class InlineINode(INode):
         self.blocks: int = 1
         self.generation: int = 1
         self.data = data
-        
+
 class INodeReader(RawIOBase):
     def __init__(self, inode: INode) -> None:
         # 01 - Init
         if not S_ISREG(inode.mode):
             raise TypeError("Not a file")
-        
+
         self.__offset = 0
         self.__closed = False
-        
+
         # 02 - Setup Tables
         self.__inode_tables = [x for x in inode.direct_clusters]
-        
+
         for depth, cluster in enumerate(inode.indirect_clusters):
             if cluster == 0xffffffff: # Terminate when null cluster is found
                 break
-            
+
             def recurse(depth, cluster):
                 inode.pm.forward_seek(cluster)
                 table = [by2int(inode.pm.file.read(4)) for _ in range(inode.table_count)]
@@ -138,20 +138,20 @@ class INodeReader(RawIOBase):
                     return temp
 
             self.__inode_tables.extend(recurse(depth, cluster))
-            
+
         self.__inode = inode
-        
+
     def read(self, count=-1) -> bytes:
         temp = bytearray()
 
         # 03 - Check if EOF
-        if self.__closed or self.__offset >= self.__inode.file_size or count == 0: 
+        if self.__closed or self.__offset >= self.__inode.file_size or count == 0:
             return b""
-        
+
         # 04 - Loop until count is zero
         read_count = (self.__inode.file_size - self.__offset) if count == -1 else count
-        
-        while read_count: 
+
+        while read_count:
             self.__inode.pm.forward_seek(self.__inode_tables[self.__offset // self.__inode.pm.super.page_size])
             t_read_count = min(self.__inode.pm.super.page_size - (self.__offset % self.__inode.pm.super.page_size), read_count)
 
@@ -160,10 +160,10 @@ class INodeReader(RawIOBase):
             read_count -= t_read_count
 
         return bytes(temp)
-        
+
     def tell(self) -> int:
         return self.__offset
-    
+
     def seek(self, offset: int, where: int=SEEK_SET) -> None:
         if where == SEEK_SET:
             self.__offset = self.__offset

@@ -21,7 +21,7 @@ class EFSInfo():
         info = EFS2_INFO_DATA.parse_stream(pm.file)
         self.root_inode: int = info.root_inode
         self.version: int = info.version
-        
+
     def __repr__(self) -> str:
         return "<{klass} {attrs}>".format(
             klass=self.__class__.__name__,
