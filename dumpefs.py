@@ -157,7 +157,7 @@ if __name__ == "__main__":
     ap.add_argument("-sb", "--superblock", type=intorhex, default=-1, help="Superblock to use (default: latest)")
     ap.add_argument("-f", "--cefs", action="store_true", help="Open as CEFS (gang image)")
     ap.add_argument("-c", "--encoding", default="latin-1", help="Text encoding to use")
-    ap.add_argument("-l", "--log", default=False, help="Parse log journal (use this if the file doesn't open)", action="store_true")
+    ap.add_argument("-nl", "--no-log", default=False, help="Do not parse log journal (you shouldn't use this flag unless the file doesn't want to open)", action="store_true")
 
     args = ap.parse_args()
     s = None
@@ -171,12 +171,12 @@ if __name__ == "__main__":
             ecc_algo_map = {"rs": EccRs, "hamming20": EccHamming20}
 
             try:
-                s = EFS2(open(args.in_filename, "rb"), args.start_offset, args.superblock, io_wrapper=lambda x: ECCFile(x, args.ecc_spare_offset, ecc_spare_type_map[args.ecc_spare_type], args.ecc_bbm, args.ecc_width, ecc_algo_map[args.ecc_algo]), log=args.log)
+                s = EFS2(open(args.in_filename, "rb"), args.start_offset, args.superblock, io_wrapper=lambda x: ECCFile(x, args.ecc_spare_offset, ecc_spare_type_map[args.ecc_spare_type], args.ecc_bbm, args.ecc_width, ecc_algo_map[args.ecc_algo]), log=not args.no_log)
 
             except ValueError as e:
                 ap.error(e)
         else:
-            s = EFS2(open(args.in_filename, "rb"), args.start_offset, args.superblock, io_wrapper=None, log=args.log)
+            s = EFS2(open(args.in_filename, "rb"), args.start_offset, args.superblock, io_wrapper=None, log=not args.no_log)
 
     if args.out_filename is None:
         _do_efs_shell(s, args.in_filename)

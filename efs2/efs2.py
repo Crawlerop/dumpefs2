@@ -11,7 +11,7 @@ from datetime import datetime
 from io import BytesIO
 
 class EFS2():
-    def __init__(self, file: RawIOBase, base_offset: int=-1, super: int=-1, io_wrapper: RawIOBase=None, encoding: str="latin-1", log=False) -> None:
+    def __init__(self, file: RawIOBase, base_offset: int=-1, super: int=-1, io_wrapper: RawIOBase=None, encoding: str="latin-1", log=True) -> None:
         self._file: RawIOBase = file
         self.__super: Superblock = None
         self._closed: bool = True
