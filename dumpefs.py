@@ -186,11 +186,12 @@ if __name__ == "__main__":
             for f, inode in s.ls_recursive("/"):
                 print(f)
                 try:
+                    info = zipfile.ZipInfo(filename=f.lstrip("/"), date_time=inode.modified_time.timetuple()[:6])
                     if S_ISDIR(inode.mode):
-                        zf.open(f.lstrip("/"), "w").write(b"")
+                        zf.open(info, "w").write(b"")
 
                     else:
-                        zf.open(f.lstrip("/"), "w").write(s.open(f).read())
+                        zf.open(info, "w").write(s.open(f).read())
 
                 except Exception as e:
                     import traceback
