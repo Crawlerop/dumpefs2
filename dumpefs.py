@@ -78,7 +78,7 @@ def _do_efs_shell(s: EFS2, name: str):
                         print(f"{cmd[0]}: too many arguments")
 
                     else:
-                        s.encoding = cmd[1]
+                        s.set_encoding(cmd[1])
 
                 elif cmd[0] == "cat":
                     if len(cmd) == 1:
@@ -171,12 +171,12 @@ if __name__ == "__main__":
             ecc_algo_map = {"rs": EccRs, "hamming20": EccHamming20}
 
             try:
-                s = EFS2(open(args.in_filename, "rb"), args.start_offset, args.superblock, io_wrapper=lambda x: ECCFile(x, args.ecc_spare_offset, ecc_spare_type_map[args.ecc_spare_type], args.ecc_bbm, args.ecc_width, ecc_algo_map[args.ecc_algo]), log=not args.no_log)
+                s = EFS2(open(args.in_filename, "rb"), args.start_offset, args.superblock, io_wrapper=lambda x: ECCFile(x, args.ecc_spare_offset, ecc_spare_type_map[args.ecc_spare_type], args.ecc_bbm, args.ecc_width, ecc_algo_map[args.ecc_algo]), log=not args.no_log, encoding=args.encoding)
 
             except ValueError as e:
                 ap.error(e)
         else:
-            s = EFS2(open(args.in_filename, "rb"), args.start_offset, args.superblock, io_wrapper=None, log=not args.no_log)
+            s = EFS2(open(args.in_filename, "rb"), args.start_offset, args.superblock, io_wrapper=None, log=not args.no_log, encoding=args.encoding)
 
     if args.out_filename is None:
         _do_efs_shell(s, args.in_filename)

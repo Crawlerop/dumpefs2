@@ -239,6 +239,10 @@ class EFS2():
         else:
             return INodeReader(file)
 
+    def set_encoding(self, encoding: str) -> None:
+        self._db.set_encoding(encoding)
+        self.encoding = encoding
+
     def close(self) -> None:
         if not self._closed:
             del self._db

@@ -154,6 +154,9 @@ class Database():
     def list(self, dir: int) -> list[DatabaseItem]:
         return self.__nodes[dir]
 
+    def set_encoding(self, encoding: str) -> None:
+        self.__encoding = encoding
+
     def __repr__(self) -> str:
         return "<{klass} {attrs}>".format(
             klass=self.__class__.__name__,
