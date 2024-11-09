@@ -115,6 +115,8 @@ class CEFS(EFS2):
         if base_offset == -1:
             base_offset = 0
 
+        self.base_offset = base_offset
+
         file.seek(base_offset)
         factory = CEFSFactory(file.read(0x80000))
 
