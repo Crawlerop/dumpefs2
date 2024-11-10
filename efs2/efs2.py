@@ -11,7 +11,7 @@ from datetime import datetime
 from io import BytesIO
 
 class EFS2():
-    def __init__(self, file: RawIOBase, base_offset: int=-1, super: int=-1, io_wrapper: RawIOBase=None, encoding: str="latin-1", log=True) -> None:
+    def __init__(self, file: RawIOBase, base_offset: int=-1, super: int=-1, io_wrapper: RawIOBase=None, encoding: str="latin-1", log=True, end_offset: int=-1) -> None:
         self._file: RawIOBase = file
         self.__super: Superblock = None
         self._closed: bool = True
@@ -25,7 +25,7 @@ class EFS2():
         superblock_offsets = []
         superblocks = []
 
-        while True:
+        while True if end_offset < 0 else file.tell() < end_offset:
             try:
                 sb_offs = file.tell()
                 sb = Superblock(file.read(0x4000))

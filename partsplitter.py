@@ -44,7 +44,7 @@ if __name__ == "__main__":
     for p in partTable.partitions:
         in_file.seek(p.start)
         
-        if p.name == "EFS2" and p.length == -1:
+        if p.name in ["EFS2", "EFS2APPS"] and p.length == -1:
             data = in_file.read()
             data = data[:compute_efs2_size(data)]
             

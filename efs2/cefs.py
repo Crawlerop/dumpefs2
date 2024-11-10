@@ -112,9 +112,6 @@ class CEFS(EFS2):
         self._file: RawIOBase = file
         self._closed: bool = True
 
-        if base_offset == -1:
-            base_offset = 0
-
         self.base_offset = base_offset
 
         file.seek(base_offset)
