@@ -8,6 +8,7 @@ import os
 __all__ = [
     'EccHamming20',
     'EccHamming20Bitpack',
+    'EccHamming20Bitpack16',
     'EccRs',
     'SpareType',
     'ECCFile'
@@ -53,8 +54,9 @@ class EccMeta(metaclass=ABCMeta):
 # MSM6550 and MSM6275 also uses the ECC, but with bitpack format instead of seperate codes
 
 class EccHamming20(EccMeta):
-    def __init__(self, bitpack: bool=False) -> None:
+    def __init__(self, bitpack: bool=False, bit_width: int=8) -> None:
         self.__bitpack = bitpack
+        self.__bit_width = bit_width
 
     @staticmethod
     def __do_gen_ecc(data: bytes) -> bytes:
@@ -126,9 +128,11 @@ class EccHamming20(EccMeta):
         return bytes(data), -1, -1
 
     @staticmethod
-    def __bitpack_ecc(ecc: bytes) -> bytes:
+    def __bitpack_ecc(ecc: bytes, bit_width: int) -> bytes:
         if len(ecc) != 12:
             raise ValueError('ECC array must be atleast 12 bytes')
+
+        assert bit_width in [8, 16]
 
         bitWrite_Data = ""
 
@@ -147,17 +151,24 @@ class EccHamming20(EccMeta):
 
         bitWrite_OutTemp = bytearray()
         while len(bitWrite_Data) != 0:
-            bitWrite_OutTemp.append(int(bitWrite_Data[:8], 2))
-            bitWrite_Data = bitWrite_Data[8:]
+            if bit_width == 16:
+                bitWrite_OutTemp += int(bitWrite_Data[:16], 2).to_bytes(2, "little")
+                bitWrite_Data = bitWrite_Data[16:]
+                
+            else:
+                bitWrite_OutTemp.append(int(bitWrite_Data[:8], 2))
+                bitWrite_Data = bitWrite_Data[8:]
 
         return bytes(bitWrite_OutTemp)
 
     @staticmethod
-    def __bitunpack_ecc(ecc: bytes) -> bytes:
+    def __bitunpack_ecc(ecc: bytes, bit_width: int) -> bytes:
         if len(ecc) != 10:
             raise ValueError('ECC part must be exactly 10 bytes')
 
-        bitRead_Data = ecc[0]
+        assert bit_width in [8, 16]
+
+        bitRead_Data = int.from_bytes(ecc[0:2], "little") if bit_width == 16 else ecc[0]
         bitRead_BitOffset = 0
         bitRead_Offset = 0
 
@@ -166,12 +177,12 @@ class EccHamming20(EccMeta):
             temp = 0
 
             for i in range(count):
-                if bitRead_BitOffset == 8:
+                if bitRead_BitOffset == bit_width:
                     bitRead_Offset += 1
                     bitRead_BitOffset = 0
-                    bitRead_Data = ecc[bitRead_Offset]
+                    bitRead_Data = int.from_bytes(ecc[(bitRead_Offset * 2):(bitRead_Offset * 2)+2], "little") if bit_width == 16 else ecc[bitRead_Offset]
 
-                temp |= ((bitRead_Data >> (7 - bitRead_BitOffset)) & 1) << ((count - 1) - i)
+                temp |= ((bitRead_Data >> ((bit_width - 1) - bitRead_BitOffset)) & 1) << ((count - 1) - i)
                 bitRead_BitOffset += 1
 
             return temp
@@ -197,7 +208,7 @@ class EccHamming20(EccMeta):
         for i in range(len(data) // 0x80):
             temp += self.__do_gen_ecc(data[(i*0x80):(i*0x80)+0x80])
 
-        return self.__bitpack_ecc(temp) if self.__bitpack else bytes(temp)
+        return self.__bitpack_ecc(temp, self.__bit_width) if self.__bitpack else bytes(temp)
 
     def decode(self, data: bytes, ecc: bytes) -> bytes:
         if len(data) > 512:
@@ -210,7 +221,7 @@ class EccHamming20(EccMeta):
             if len(ecc) > 10:
                 raise ValueError('ECC parity larger than 10 bytes')
 
-            ecc = self.__bitunpack_ecc(ecc)
+            ecc = self.__bitunpack_ecc(ecc, self.__bit_width)
 
         if len(ecc) > 12:
             raise ValueError('ECC parity larger than 12 bytes')
@@ -235,8 +246,13 @@ class EccHamming20(EccMeta):
 
 # Class version of the bitpack version of ECC
 class EccHamming20Bitpack(EccHamming20):
-    def __init__(self, bitpack: bool=True):
-        super().__init__(bitpack)
+    def __init__(self):
+        super().__init__(True)
+        
+# Class version of the bitpack version of ECC
+class EccHamming20Bitpack16(EccHamming20):
+    def __init__(self):
+        super().__init__(True, 16)
 
 # Qualcomm RS engine (QSC6270, QSC6xx5, MSM6246, MSM6290, MSM68xx, MSM72xx, etc.)
 class EccRs(EccMeta):
