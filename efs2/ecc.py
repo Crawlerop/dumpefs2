@@ -292,6 +292,8 @@ class ECCFile(RawIOBase):
         self.__spare_type: int = spare_type
         self.__closed: bool = False
 
+        self.seek(0)
+
     def __read_page(self) -> tuple[bytes, bytes]:
         if self.__cur_offset >= self.__eof:
             return b"", b""
