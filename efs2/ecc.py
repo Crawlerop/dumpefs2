@@ -7,6 +7,7 @@ import os
 
 __all__ = [
     'EccHamming20',
+    'EccHamming20Bitpack',
     'EccRs',
     'SpareType',
     'ECCFile'
@@ -48,8 +49,13 @@ class EccMeta(metaclass=ABCMeta):
     def size(self) -> int:
         pass
 
-# Qualcomm 20-bit Hamming engine (MSM6100, MSM6500, MSM6550)
+# Qualcomm 20-bit Hamming engine (MSM6100, MSM6250, MSM6500)
+# MSM6550 and MSM6275 also uses the ECC, but with bitpack format instead of seperate codes
+
 class EccHamming20(EccMeta):
+    def __init__(self, bitpack: bool=False) -> None:
+        self.__bitpack = bitpack
+
     @staticmethod
     def __do_gen_ecc(data: bytes) -> bytes:
         reg1 = reg2 = reg3 = 0
@@ -60,7 +66,7 @@ class EccHamming20(EccMeta):
 
             if idx & 0x40:
                 reg3 ^= i
-                reg2 ^= (~i) + 0x100            
+                reg2 ^= (~i) + 0x100
 
         tmp1 = (reg3 & 0x40) >> 1
         tmp1 |= (reg2 & 0x40) >> 2
@@ -85,7 +91,7 @@ class EccHamming20(EccMeta):
         data = bytearray(data)
         ecc_xor = bytes([x ^ y for x, y in zip(ecc, ecc_calc)])
 
-        if ecc_xor == b"\0\0\0": 
+        if ecc_xor == b"\0\0\0":
             return bytes(data), -1, -1
 
         check_ecc = bytes([x ^ (x >> 1) for x in ecc_xor])
@@ -119,6 +125,66 @@ class EccHamming20(EccMeta):
 
         return bytes(data), -1, -1
 
+    @staticmethod
+    def __bitpack_ecc(ecc: bytes) -> bytes:
+        if len(ecc) != 12:
+            raise ValueError('ECC array must be atleast 12 bytes')
+
+        bitWrite_Data = ""
+
+        def writeBit(data: int, bit_count: int):
+            nonlocal bitWrite_Data
+
+            bit = bin(data & ((2 ** bit_count) - 1))[2:]
+            bitWrite_Data += ("0" * (bit_count - len(bit))) + bit
+
+        offset = 0
+        while offset < 12:
+            writeBit(ecc[offset], 6)
+            writeBit(ecc[offset + 1], 8)
+            writeBit(ecc[offset + 2], 6)
+            offset += 3
+
+        bitWrite_OutTemp = bytearray()
+        while len(bitWrite_Data) != 0:
+            bitWrite_OutTemp.append(int(bitWrite_Data[:8], 2))
+            bitWrite_Data = bitWrite_Data[8:]
+
+        return bytes(bitWrite_OutTemp)
+
+    @staticmethod
+    def __bitunpack_ecc(ecc: bytes) -> bytes:
+        if len(ecc) != 10:
+            raise ValueError('ECC part must be exactly 10 bytes')
+
+        bitRead_Data = ecc[0]
+        bitRead_BitOffset = 0
+        bitRead_Offset = 0
+
+        def readBit(count):
+            nonlocal bitRead_Data, bitRead_Offset, bitRead_BitOffset
+            temp = 0
+
+            for i in range(count):
+                if bitRead_BitOffset == 8:
+                    bitRead_Offset += 1
+                    bitRead_BitOffset = 0
+                    bitRead_Data = ecc[bitRead_Offset]
+
+                temp |= ((bitRead_Data >> (7 - bitRead_BitOffset)) & 1) << ((count - 1) - i)
+                bitRead_BitOffset += 1
+
+            return temp
+
+        temp = bytearray()
+
+        for _ in range(4):
+            temp.append(readBit(6))
+            temp.append(readBit(8))
+            temp.append(readBit(6))
+
+        return bytes(temp)
+
     def encode(self, data: bytes) -> bytes:
         if len(data) > 512:
             raise ValueError('ECC data larger than 512 bytes')
@@ -131,7 +197,7 @@ class EccHamming20(EccMeta):
         for i in range(len(data) // 0x80):
             temp += self.__do_gen_ecc(data[(i*0x80):(i*0x80)+0x80])
 
-        return bytes(temp)
+        return self.__bitpack_ecc(temp) if self.__bitpack else bytes(temp)
 
     def decode(self, data: bytes, ecc: bytes) -> bytes:
         if len(data) > 512:
@@ -140,13 +206,19 @@ class EccHamming20(EccMeta):
         if (len(data) % 0x80) != 0:
             raise ValueError('ECC data length must be divisible by 128 bytes')
 
+        if self.__bitpack:
+            if len(ecc) > 10:
+                raise ValueError('ECC parity larger than 10 bytes')
+
+            ecc = self.__bitunpack_ecc(ecc)
+
         if len(ecc) > 12:
-            raise ValueError('ECC parity larger than 512 bytes')
+            raise ValueError('ECC parity larger than 12 bytes')
 
         if (len(ecc) % 0x3) != 0:
             raise ValueError('ECC parity length must be divisible by 3 bytes')
 
-        if (len(ecc) // 3) != (len(data) // 0x80): 
+        if (len(ecc) // 3) != (len(data) // 0x80):
             raise ValueError('ECC parity count must be the same as data count')
 
         temp = bytearray()
@@ -159,7 +231,12 @@ class EccHamming20(EccMeta):
 
     @property
     def size(self) -> int:
-        return 12
+        return 10 if self.__bitpack else 12
+
+# Class version of the bitpack version of ECC
+class EccHamming20Bitpack(EccHamming20):
+    def __init__(self, bitpack: bool=True):
+        super().__init__(bitpack)
 
 # Qualcomm RS engine (QSC6270, QSC6xx5, MSM6246, MSM6290, MSM68xx, MSM72xx, etc.)
 class EccRs(EccMeta):
@@ -250,7 +327,7 @@ class SpareType(IntEnum):
     STANDARD = 1
     QCOM_2K = 2
 
-class ECCFile(RawIOBase):    
+class ECCFile(RawIOBase):
     def __init__(self, inp: str | RawIOBase, spare_offset_page_size: int=0, spare_type: int=SpareType.RIFF, bbm: int=5, page_width: int=16, ecc_algo: EccMeta=EccRs) -> None:
         self.__closed: bool = True
 

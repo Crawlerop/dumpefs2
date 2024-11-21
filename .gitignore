@@ -162,3 +162,5 @@ cython_debug/
 
 *.zip
 dumpefs_test/
+ecc_test.py
+ecc_data/
