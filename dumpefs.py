@@ -165,7 +165,7 @@ if __name__ == "__main__":
     ap.add_argument("-bs", "--block-size", default=0x20000, help="Block size (only applicable when using partition to determine offset)")
 
     args = ap.parse_args()
-    if args.spare_type == "seperate":
+    if args.ecc_spare_type == "seperate":
         ap.error("Sorry, but inputing seperate files (data and obb) is not currently supported at this time.")
 
     s = None
