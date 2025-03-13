@@ -107,10 +107,11 @@ class CEFSPM(PageManager):
         return self.__rtables[page]
 
 class CEFS(EFS2):
-    def __init__(self, file: RawIOBase, base_offset: int=0, encoding: str="latin-1") -> None:
+    def __init__(self, file: RawIOBase, base_offset: int=0, encoding: str="latin-1", errors: bool=True) -> None:
         self.encoding: str = encoding
         self._file: RawIOBase = file
         self._closed: bool = True
+        self._errors: bool = errors
 
         self.base_offset = base_offset
 

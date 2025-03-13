@@ -11,10 +11,11 @@ from datetime import datetime
 from io import BytesIO
 
 class EFS2():
-    def __init__(self, file: RawIOBase, base_offset: int=-1, super: int=-1, io_wrapper: RawIOBase=None, encoding: str="latin-1", log=True, end_offset: int=-1) -> None:
+    def __init__(self, file: RawIOBase, base_offset: int=-1, super: int=-1, io_wrapper: RawIOBase=None, encoding: str="latin-1", log=True, end_offset: int=-1, errors: bool=True) -> None:
         self._file: RawIOBase = file
         self.__super: Superblock = None
         self._closed: bool = True
+        self._errors: bool = errors
 
         self.encoding: str = encoding
 
@@ -175,8 +176,13 @@ class EFS2():
                 return [(self.__format_name(file), file)]
 
             for n in self._db.list(file.id):
-                inode = self.__classify_inode(n)
-                temp.append((self.__format_name(inode), inode))
+                try:
+                    inode = self.__classify_inode(n)
+                    temp.append((self.__format_name(inode), inode))
+
+                except Exception as e:
+                    if self._errors: raise
+                    print(f"cannot open file {n.name.decode(self.encoding)}: {e}")
 
         return temp
 

@@ -22,7 +22,9 @@ class PageManager(metaclass=ABCMeta):
         pass
 
     def forward_to_offset(self, cluster: int) -> int:
-        return self.get_forward(cluster) * self.super.page_size
+        temp = self.get_forward(cluster)
+        if temp == 0xffffffff: print("WARN: invalid cluster")
+        return temp * self.super.page_size
 
     def forward_seek(self, cluster: int, offset_from_cluster: int=0) -> None:
         self.file.seek(self._base_offset + self.forward_to_offset(cluster) + (offset_from_cluster % self.super.page_size))
