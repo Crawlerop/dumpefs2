@@ -162,6 +162,7 @@ if __name__ == "__main__":
     ap.add_argument("-f", "--cefs", action="store_true", help="Open as CEFS (gang image)")
     ap.add_argument("-c", "--encoding", default="latin-1", help="Text encoding to use")
     ap.add_argument("-nl", "--no-log", default=False, help="Do not parse log journal (you shouldn't use this flag unless the file doesn't want to open)", action="store_true")
+    ap.add_argument("-ne", "--no-errors", default=False, help="Ignore errors during dir", action="store_true")
     ap.add_argument("-bs", "--block-size", default=0x20000, help="Block size (only applicable when using partition to determine offset)")
 
     args = ap.parse_args()
@@ -208,7 +209,7 @@ if __name__ == "__main__":
         else:
             start = 0 if args.start_offset == -1 else args.start_offset
 
-        s = CEFS(open(args.in_filename, "rb"), start, args.encoding)
+        s = CEFS(open(args.in_filename, "rb"), start, args.encoding, errors=not args.no_errors)
 
     else:
         if args.ecc:
@@ -223,7 +224,7 @@ if __name__ == "__main__":
                 end = -1
 
             try:
-                s = EFS2(open(args.in_filename, "rb"), start, args.superblock, io_wrapper=lambda x: ECCFile(x, args.ecc_spare_offset, ecc_spare_type_map[args.ecc_spare_type], args.ecc_bbm, args.ecc_width, ecc_algo_map[args.ecc_algo]), log=not args.no_log, encoding=args.encoding, end_offset=end)
+                s = EFS2(open(args.in_filename, "rb"), start, args.superblock, io_wrapper=lambda x: ECCFile(x, args.ecc_spare_offset, ecc_spare_type_map[args.ecc_spare_type], args.ecc_bbm, args.ecc_width, ecc_algo_map[args.ecc_algo]), log=not args.no_log, encoding=args.encoding, end_offset=end, errors=not args.no_errors)
 
             except ValueError as e:
                 ap.error(e)
@@ -236,7 +237,7 @@ if __name__ == "__main__":
                 start = args.start_offset
                 end = -1
 
-            s = EFS2(open(args.in_filename, "rb"), start, args.superblock, io_wrapper=None, log=not args.no_log, encoding=args.encoding, end_offset=end)
+            s = EFS2(open(args.in_filename, "rb"), start, args.superblock, io_wrapper=None, log=not args.no_log, encoding=args.encoding, end_offset=end, errors=not args.no_errors)
 
     if args.out_filename is None:
         _do_efs_shell(s, args.in_filename)
