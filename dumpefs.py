@@ -214,7 +214,7 @@ if __name__ == "__main__":
     else:
         if args.ecc:
             ecc_spare_type_map = {"riff": SpareType.RIFF, "standard": SpareType.STANDARD, "qcom": SpareType.QCOM_2K}
-            ecc_algo_map = {"rs": EccRs, "hamming20": EccHamming20, "hamming20_bitpack": EccHamming20Bitpack if args.width == 8 else EccHamming20Bitpack16}
+            ecc_algo_map = {"rs": EccRs, "hamming20": EccHamming20, "hamming20_bitpack": EccHamming20Bitpack if args.ecc_width == 8 else EccHamming20Bitpack16}
 
             if args.partition is not None:
                 start, end = lookup_partition(ECCFile(args.in_filename, args.ecc_spare_offset, ecc_spare_type_map[args.ecc_spare_type], args.ecc_bbm, args.ecc_width, ecc_algo_map[args.ecc_algo]), args.partition, args.block_size)
