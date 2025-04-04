@@ -23,6 +23,23 @@ EFS2_INODE_V2 = Struct(
     "indirect_cluster_id" / Array(3, Hex(Int32ul)),
 )
 
+EFS2_INODE_V2_32BIT = Struct(
+    "mode" / Hex(Int32ul),
+    "nlink" / Hex(Int32ul),
+    "attr" / Hex(Int32ul),
+    "size" / Hex(Int32ul),
+    "uid" / Hex(Int16ul),
+    "gid" / Hex(Int16ul),
+    "generation" / Hex(Int32ul),
+    "blocks" / Hex(Int32ul),
+    "mtime" / Hex(Int32ul),
+    "ctime" / Hex(Int32ul),
+    "atime" / Hex(Int32ul),
+    "reserved" / Array(7, Hex(Int32ul)),
+    "direct_cluster_id" / Array(13, Hex(Int32ul)),
+    "indirect_cluster_id" / Array(3, Hex(Int32ul)),
+)
+
 EFS2_INODE_V1 = Struct(
     "mode" / Hex(Int16ul),
     "nlink" / Hex(Int16ul),
@@ -40,10 +57,17 @@ class INode():
         # Compute INode bitmasks to determine the actual INode offset
         # log2(0x800 // 0x80) = log2(16) = 4, log2(0x200 // 0x3c) = log(8) = 3, log2(0x200 // 0x80) = log(4) = 2
         COMPUTED_INODE_SIZE = 0x80 if actual_version(pm.super.version) >= 0x24 or actual_version(pm.super.version) in [0xe, 0xf] else 0x3c
+
+        # Sanyo Katana uses 32-bit INodes, so detect that
+        if actual_version(pm.super.version) in [0xe, 0xf] and (pm.super.version >> 8) & 4: COMPUTED_INODE_SIZE += 4
+
         COMPUTED_INODE_BITS = ilog2(pm.super.page_size // COMPUTED_INODE_SIZE)
         COMPUTED_INODE_MASK = (1 << COMPUTED_INODE_BITS) - 1
 
         struct_inode_data = EFS2_INODE_V2 if actual_version(pm.super.version) >= 0x24 or actual_version(pm.super.version) in [0xe, 0xf] else EFS2_INODE_V1
+
+        # Do the same for Sanyo Katana
+        if actual_version(pm.super.version) in [0xe, 0xf] and (pm.super.version >> 8) & 4: struct_inode_data = EFS2_INODE_V2_32BIT
 
         if item.inode is None:
             raise TypeError("Item is not an inode")
