@@ -60,6 +60,8 @@ class INode():
 
         # Sanyo Katana uses 32-bit INodes, so detect that
         if actual_version(pm.super.version) in [0xe, 0xf] and (pm.super.version >> 8) & 4: COMPUTED_INODE_SIZE += 4
+        # Sanyo A5522SA uses old inode structure although other phones used the new ones.
+        elif actual_version(pm.super.version) in [0xe, 0xf] and (pm.super.version >> 8) & 0x10: COMPUTED_INODE_SIZE = 0x3c
 
         COMPUTED_INODE_BITS = ilog2(pm.super.page_size // COMPUTED_INODE_SIZE)
         COMPUTED_INODE_MASK = (1 << COMPUTED_INODE_BITS) - 1
@@ -68,6 +70,8 @@ class INode():
 
         # Do the same for Sanyo Katana
         if actual_version(pm.super.version) in [0xe, 0xf] and (pm.super.version >> 8) & 4: struct_inode_data = EFS2_INODE_V2_32BIT
+        # Ditto for A5522SA
+        elif actual_version(pm.super.version) in [0xe, 0xf] and (pm.super.version >> 8) & 0x10: struct_inode_data = EFS2_INODE_V1
 
         if item.inode is None:
             raise TypeError("Item is not an inode")
@@ -99,7 +103,7 @@ class INode():
         self.direct_clusters = inode.direct_cluster_id
         self.indirect_clusters = inode.indirect_cluster_id
 
-        if actual_version(pm.super.version) >= 0x24 or actual_version(pm.super.version) in [0xe, 0xf]:
+        if actual_version(pm.super.version) >= 0x24 or (actual_version(pm.super.version) in [0xe, 0xf] and (not (pm.super.version >> 8) & 0x10)):
             self.user_id: int = inode.uid
             self.group_id: int = inode.gid
             self.accessed_time: datetime = datetime.fromtimestamp(inode.atime)
